@@ -23,7 +23,7 @@ df_coef = pd.read_csv(archivo_coef)
 dic_coef = dict(zip(df_coef['Feature'], df_coef['Coefficient']))
 
 # Establecer la intersección.
-interseccion = 0 
+interseccion = 0
 
 # -----------------------------------------------------------
 # Identificar las características continuas y categóricas del modelo.
@@ -102,16 +102,32 @@ app.layout = html.Div([
     
     html.Br(),
     
-    # Control deslizante para Área
+    # Selector de unidad para Área
     html.Div([
-        html.Label("Seleccione Área (en pies al cuadrado)"),
+        html.Label("Seleccione unidad de área"),
+        dcc.RadioItems(
+            id="unit-radio",
+            options=[
+                {"label": "Pies cuadrados (ft²)", "value": "ft2"},
+                {"label": "Metros cuadrados (m²)", "value": "m2"}
+            ],
+            value="ft2",
+            labelStyle={'display': 'inline-block', 'margin-right': '10px'}
+        )
+    ], style={'width': '90%', 'padding': '20px'}),
+    
+    html.Br(),
+    
+    # Control deslizante para Área (valores internos en pies cuadrados)
+    html.Div([
+        html.Label("Seleccione Área"),
         dcc.RangeSlider(
             id="area-slider",
             min=500,
             max=5000,
             step=50,
             value=[1500, 2500],
-            marks={i: str(i) for i in range(500, 5001, 500)}
+            marks={i: str(i) for i in range(500, 5001, 500)}  # Se actualizará según la unidad seleccionada
         )
     ], style={'width': '90%', 'padding': '20px'}),
     
@@ -120,6 +136,24 @@ app.layout = html.Div([
     # Gráfico: Mapa de EE.UU. para mostrar precios predichos por estado.
     dcc.Graph(id="us-map")
 ])
+
+# -----------------------------------------------------------
+# Callback para actualizar las marcas (marks) del control deslizante de área según la unidad.
+# -----------------------------------------------------------
+@app.callback(
+    Output("area-slider", "marks"),
+    Input("unit-radio", "value")
+)
+def actualizar_marcas(unidad):
+    # Los valores internos siempre están en pies cuadrados.
+    # Si se selecciona m², se convierten los valores para mostrar en la interfaz.
+    if unidad == "ft2":
+        return {i: str(i) for i in range(500, 5001, 500)}
+    elif unidad == "m2":
+        # Conversión: 1 m² = 10.7639 ft²
+        return {i: str(round(i / 10.7639, 1)) for i in range(500, 5001, 500)}
+    else:
+        return {i: str(i) for i in range(500, 5001, 500)}
 
 # -----------------------------------------------------------
 # Callback para actualizar el mapa según las entradas del usuario.
@@ -134,6 +168,7 @@ app.layout = html.Div([
 )
 def actualizar_mapa(servicios_seleccionados, estados_seleccionados, cuartos, banios, rango_area):
     # Usar el punto medio del rango de área seleccionado para la predicción.
+    # Nota: El valor del slider está en pies cuadrados.
     valor_area = sum(rango_area) / 2.0
 
     # Calcular la predicción base utilizando las entradas continuas.
