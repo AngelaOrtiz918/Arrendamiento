@@ -34,8 +34,9 @@ caracteristicas_continuas = {"bathrooms", "bedrooms", "square_feet", "baños*are
 
 # Para las características categóricas, se asumen dos grupos:
 # 1. Servicios (características categóricas que no corresponden a estados)
+# Se elimina "noamenities" de las opciones, ya que se utilizará como valor por defecto.
 servicios = [car for car in dic_coef.keys() 
-             if (not car.startswith("state_")) and (car not in caracteristicas_continuas)]
+             if (not car.startswith("state_")) and (car not in caracteristicas_continuas) and (car != "noamenities")]
 opciones_servicios = [{"label": car, "value": car} for car in servicios]
 
 # 2. Estados (características que comienzan con "state_"). Se extrae el código del estado.
@@ -167,6 +168,10 @@ def actualizar_marcas(unidad):
     Input("area-slider", "value")
 )
 def actualizar_mapa(servicios_seleccionados, estados_seleccionados, cuartos, banios, rango_area):
+    # Si no se selecciona ningún servicio, usar "noamenities" por defecto.
+    if not servicios_seleccionados:
+        servicios_seleccionados = ["noamenities"]
+
     # Usar el punto medio del rango de área seleccionado para la predicción.
     # Nota: El valor del slider está en pies cuadrados.
     valor_area = sum(rango_area) / 2.0
@@ -180,10 +185,9 @@ def actualizar_mapa(servicios_seleccionados, estados_seleccionados, cuartos, ban
     precio_base += (cuartos * valor_area) * dic_coef.get("cuartos*area", 0)
     precio_base += (cuartos * banios) * dic_coef.get("cuartos*baños", 0)
     
-    # Agregar las contribuciones de los servicios seleccionados (se asume 1 si están activos).
-    if servicios_seleccionados:
-        for servicio in servicios_seleccionados:
-            precio_base += dic_coef.get(servicio, 0)
+    # Agregar las contribuciones de los servicios seleccionados.
+    for servicio in servicios_seleccionados:
+        precio_base += dic_coef.get(servicio, 0)
     
     # Determinar para qué estados se calcularán las predicciones.
     # Si no se selecciona ningún estado, se utilizan todos los estados disponibles.
