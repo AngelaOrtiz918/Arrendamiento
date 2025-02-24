@@ -3,6 +3,7 @@ import dash
 from dash import dcc, html, Input, Output
 import dash_bootstrap_components as dbc
 import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
 
 # ------------------------------
@@ -21,6 +22,7 @@ dic_coef = dict(zip(df_coef['Feature'], df_coef['Coefficient']))
 
 # Cargar el DataFrame de datos
 df_datos = pd.read_csv(ruta_datos, encoding='ISO-8859-1', on_bad_lines='skip', delimiter=';', engine='python')
+df_datos.columns = df_datos.columns.str.strip()
 
 # Establecer la intersección.
 interseccion = 0
@@ -90,15 +92,14 @@ app.layout = html.Div([
                 )
             ], style={'width': '20%', 'marginRight': '5%'}),
             html.Div([
-            html.Label("Seleccione opción de mascotas"),
-            dcc.Dropdown(
-                id="pet-dropdown",
-                options=opciones_pets,
-                value="petsunknown",
-                clearable=False
-            )
-        ], style={'width': '20%', 'marginBottom': '20px'})
-
+                html.Label("Seleccione opción de mascotas"),
+                dcc.Dropdown(
+                    id="pet-dropdown",
+                    options=opciones_pets,
+                    value="petsunknown",
+                    clearable=False
+                )
+            ], style={'width': '20%', 'marginBottom': '20px'})
         ], style={
             'display': 'flex', 
             'flexWrap': 'wrap',
@@ -106,7 +107,6 @@ app.layout = html.Div([
             'marginBottom': '20px'
         }),
         
-  
         # Fila 2: Servicios (amenities) y Estados
         html.Div([
             html.Div([
@@ -254,19 +254,26 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     
     df_estados = pd.DataFrame(datos_estados)
     
-    fig = px.choropleth(
-        df_estados,
-        locations="state",
-        locationmode="USA-states",
-        color="predicted_price",
-        color_continuous_scale="RdBu_r",
-        scope="usa",
-        labels={"predicted_price": "Precio estimado"}
-    )
-    fig.update_layout(title_text="Predicción de precio inmobiliario por estado", title_x=0.5)
+    # Verificar si df_estados está vacío
+    if df_estados.empty:
+        fig = go.Figure()
+        fig.update_layout(
+            title_text="No hay datos para mostrar en el mapa",
+            title_x=0.5
+        )
+    else:
+        fig = px.choropleth(
+            df_estados,
+            locations="state",
+            locationmode="USA-states",
+            color="predicted_price",
+            color_continuous_scale="RdBu_r",
+            scope="usa",
+            labels={"predicted_price": "Precio estimado"}
+        )
+        fig.update_layout(title_text="Predicción de precio inmobiliario por estado", title_x=0.5)
     
     # --- PARTE 2: FILTRADO Y TOP 10 ---
-    # Rellenar valores faltantes en 'pets_allowed'
     datos_filtrados = df_datos.copy()
     datos_filtrados['pets_allowed'] = datos_filtrados['pets_allowed'].fillna('petsunknown')
     
@@ -279,25 +286,28 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     
     # Filtrar por estados (si se especifica)
     if estados_seleccionados:
-        lista_estados_filtro = [s.strip() for s in estados_seleccionados]
-        datos_filtrados = datos_filtrados[datos_filtrados['state'].isin(lista_estados_filtro)]
+        datos_filtrados = datos_filtrados[datos_filtrados['state'].isin(estados_seleccionados)]
     
     # Filtrar por la opción de mascotas (pet-dropdown)
     datos_filtrados = datos_filtrados[datos_filtrados['pets_allowed'] == pet_option]
     
+    # Asegurarse de que la columna "amenities" sea de tipo string y rellenar los valores faltantes
+    datos_filtrados['amenities'] = datos_filtrados['amenities'].fillna('noamenities').astype(str)
+    
     # Filtrar por servicios (amenities) si se han seleccionado
     if servicios_seleccionados:
-        datos_filtrados['amenities'] = datos_filtrados['amenities'].fillna('noamenities')
         datos_filtrados = datos_filtrados[datos_filtrados['amenities'].apply(
             lambda x: all(amenity.lower() in [a.strip().lower() for a in x.split(',')]
                           for amenity in servicios_seleccionados)
         )]
     
-    # Seleccionar las 10 propiedades más baratas según el precio mostrando 'title' y 'body' para tener una mejor descripción
     columnas_seleccionadas = ['title', 'body', 'bedrooms', 'bathrooms', 'square_feet', 'state', 'pets_allowed', 'amenities', 'price']
-    top10_df = datos_filtrados.sort_values('price').head(10)[columnas_seleccionadas]
+    # Si no hay datos o la columna 'price' no está presente, se crea un DataFrame vacío con las columnas esperadas.
+    if datos_filtrados.empty or 'price' not in datos_filtrados.columns:
+        top10_df = pd.DataFrame(columns=columnas_seleccionadas)
+    else:
+        top10_df = datos_filtrados.sort_values('price').head(10)[columnas_seleccionadas]
     
-    # Crear tabla HTML para mostrar el Top 10
     if not top10_df.empty:
         header_cells = [
             html.Th(col, style={'textAlign': 'center', 'padding': '8px', 'border': '1px solid black'}) 
