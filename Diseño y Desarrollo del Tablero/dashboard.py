@@ -11,17 +11,16 @@ import pandas as pd
 # ------------------------------
 
 # Ruta base
-ruta_base = os.path.abspath(os.path.join(os.getcwd(), '..', 'Proyecto 1', 'Arrendamiento', 'Modelamiento'))
-ruta_datos = os.path.join(ruta_base, 'datos_apartamentos_rent_practicamod.csv')
-ruta_modelo = os.path.join(ruta_base, 'final_linear_regression_model_int.pkl')
-archivo_coef = os.path.join(ruta_base, 'coeficientes_modelo_final.csv')
+script_dir = os.path.dirname(os.path.abspath(__file__))
+archivo_datos = os.path.join(script_dir, 'datos_apartamentos_rent_practicamod.csv')
+archivo_coef = os.path.join(script_dir, 'coeficientes_modelo_final.csv')
 
 # Cargar el DataFrame de coeficientes y crear el diccionario de coeficientes
 df_coef = pd.read_csv(archivo_coef)
 dic_coef = dict(zip(df_coef['Feature'], df_coef['Coefficient']))
 
 # Cargar el DataFrame de datos
-df_datos = pd.read_csv(ruta_datos, encoding='ISO-8859-1', on_bad_lines='skip', delimiter=';', engine='python')
+df_datos = pd.read_csv(archivo_datos, encoding='ISO-8859-1', on_bad_lines='skip', delimiter=';', engine='python')
 df_datos.columns = df_datos.columns.str.strip()
 
 # Establecer la intersección.
@@ -220,25 +219,36 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     if not servicios_seleccionados:
         servicios_seleccionados = ["noamenities"]
     
-    # El valor del slider está en ft² (independientemente de la unidad de visualización)
-    valor_area = sum(rango_area) / 2.0
-
-    # Calcular el precio base usando entradas continuas
-    precio_base = interseccion
-    precio_base += cuartos * dic_coef.get("bedrooms", 0)
-    precio_base += banios * dic_coef.get("bathrooms", 0)
-    precio_base += valor_area * dic_coef.get("square_feet", 0)
-    precio_base += (banios * valor_area) * dic_coef.get("baños*area", 0)
-    precio_base += (cuartos * valor_area) * dic_coef.get("cuartos*area", 0)
-    precio_base += (cuartos * banios) * dic_coef.get("cuartos*baños", 0)
+    # rango minimo y maximo para el area
+    lower_area = rango_area[0]
+    upper_area = rango_area[1]
+    
+    # Calcular precio base min y max para el rango de área seleccionado
+    precio_base_lower = interseccion
+    precio_base_lower += cuartos * dic_coef.get("bedrooms", 0)
+    precio_base_lower += banios * dic_coef.get("bathrooms", 0)
+    precio_base_lower += lower_area * dic_coef.get("square_feet", 0)
+    precio_base_lower += (banios * lower_area) * dic_coef.get("baños*area", 0)
+    precio_base_lower += (cuartos * lower_area) * dic_coef.get("cuartos*area", 0)
+    precio_base_lower += (cuartos * banios) * dic_coef.get("cuartos*baños", 0)
+    
+    precio_base_upper = interseccion
+    precio_base_upper += cuartos * dic_coef.get("bedrooms", 0)
+    precio_base_upper += banios * dic_coef.get("bathrooms", 0)
+    precio_base_upper += upper_area * dic_coef.get("square_feet", 0)
+    precio_base_upper += (banios * upper_area) * dic_coef.get("baños*area", 0)
+    precio_base_upper += (cuartos * upper_area) * dic_coef.get("cuartos*area", 0)
+    precio_base_upper += (cuartos * banios) * dic_coef.get("cuartos*baños", 0)
     
     # Agregar contribución de los servicios (amenities) seleccionados
     for servicio in servicios_seleccionados:
-        precio_base += dic_coef.get(servicio, 0)
+        precio_base_lower += dic_coef.get(servicio, 0)
+        precio_base_upper += dic_coef.get(servicio, 0)
     
     if pet_option is None:
         pet_option = "petsunknown"
-    precio_base += dic_coef.get(pet_option, 0)
+    precio_base_lower += dic_coef.get(pet_option, 0)
+    precio_base_upper += dic_coef.get(pet_option, 0)
     
     if estados_seleccionados:
         lista_estados = estados_seleccionados
@@ -249,8 +259,15 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     for estado in lista_estados:
         clave_estado = "state_" + estado
         coef_estado = dic_coef.get(clave_estado, 0)
-        precio_predicho = precio_base + coef_estado
-        datos_estados.append({"state": estado, "predicted_price": precio_predicho})
+        precio_pred_lower = precio_base_lower + coef_estado
+        precio_pred_upper = precio_base_upper + coef_estado
+        precio_pred_avg = (precio_pred_lower + precio_pred_upper) / 2.0
+        datos_estados.append({
+            "state": estado, 
+            "predicted_price_lower": precio_pred_lower,
+            "predicted_price_upper": precio_pred_upper,
+            "predicted_price_avg": precio_pred_avg
+        })
     
     df_estados = pd.DataFrame(datos_estados)
     
@@ -262,14 +279,24 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
             title_x=0.5
         )
     else:
+        overall_min = df_estados["predicted_price_lower"].min()
+        overall_max = df_estados["predicted_price_upper"].max()
+        
         fig = px.choropleth(
             df_estados,
             locations="state",
             locationmode="USA-states",
-            color="predicted_price",
+            color="predicted_price_avg",
+            range_color=[overall_min, overall_max],
             color_continuous_scale="RdBu_r",
             scope="usa",
-            labels={"predicted_price": "Precio estimado"}
+            labels={"predicted_price_avg": "Precio estimado"}
+        )
+        fig.update_traces(
+            hovertemplate="<b>%{location}</b><br>" +
+                          "Precio mínimo: %{customdata[0]}<br>" +
+                          "Precio máximo: %{customdata[1]}<extra></extra>",
+            customdata=df_estados[["predicted_price_lower", "predicted_price_upper"]].values
         )
         fig.update_layout(title_text="Predicción de precio inmobiliario por estado", title_x=0.5)
     
