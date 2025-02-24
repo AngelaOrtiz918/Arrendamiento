@@ -29,11 +29,11 @@ interseccion = 0
 # Identificar características continuas y categóricas
 # -----------------------------------------------------------
 # Variables continuas que se usan directamente:
-#   "bathrooms", "bedrooms", "square_feet", "baños*area", "cuartos*area", "cuartos*baños"
 caracteristicas_continuas = {"bathrooms", "bedrooms", "square_feet", "baños*area", "cuartos*area", "cuartos*baños"}
 
 # Definir las opciones de mascotas.
 # se mapean a df_datos.pets_allowed.
+
 pet_options_set = {"Cats", "Cats,Dogs", "Dogs", "petsunknown"}
 opciones_pets = [{"label": opt, "value": opt} for opt in ["Cats", "Dogs", "Cats,Dogs", "petsunknown"]]
 
@@ -59,108 +59,98 @@ opciones_banios = [{"label": str(i), "value": i} for i in range(1, 11)]
 # -----------------------------------------------------------
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.layout = html.Div([
-    html.H1("Tablero de predicción de precios inmobiliarios"),
+    html.H1("Tablero de predicción de precios inmobiliarios", style={'textAlign': 'center', 'marginBottom': '30px'}),
     
-    # Fila para seleccionar servicios (amenities) y estados
+    # Contenedor para los menús con márgenes laterales
     html.Div([
         html.Div([
-            html.Label("Seleccione servicios (amenities)"),
-            dcc.Dropdown(
-                id="amenities-dropdown",
-                options=opciones_servicios,
-                multi=True,
-                placeholder="Servicios..."
-            )
-        ], style={'width': '45%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginRight': '2%'}),
+            html.Div([
+                html.Label("Seleccione servicios (amenities)"),
+                dcc.Dropdown(
+                    id="amenities-dropdown",
+                    options=opciones_servicios,
+                    multi=True,
+                    placeholder="Servicios..."
+                )
+            ], style={'width': '45%', 'display': 'inline-block', 'verticalAlign': 'top', 'marginRight': '3%'}),
+            html.Div([
+                html.Label("Seleccione Estados"),
+                dcc.Dropdown(
+                    id="states-dropdown",
+                    options=opciones_estados,
+                    multi=True,
+                    placeholder="Seleccione Estados... (Se muestran todos si no se selecciona ninguno)"
+                )
+            ], style={'width': '45%', 'display': 'inline-block', 'verticalAlign': 'top'})
+        ], style={'marginBottom': '20px'}),
+        
         html.Div([
-            html.Label("Seleccione Estados"),
+            html.Label("Seleccione opción de mascotas"),
             dcc.Dropdown(
-                id="states-dropdown",
-                options=opciones_estados,
-                multi=True,
-                placeholder="Seleccione Estados... (Se muestran todos si no se selecciona ninguno)"
+                id="pet-dropdown",
+                options=opciones_pets,
+                value="petsunknown",  # Valor por defecto
+                clearable=False
             )
-        ], style={'width': '45%', 'display': 'inline-block', 'verticalAlign': 'top'})
-    ]),
-    
-    html.Br(),
-    
-    # Nueva fila para seleccionar opción de mascotas (única selección)
-    html.Div([
-        html.Label("Seleccione opción de mascotas"),
-        dcc.Dropdown(
-            id="pet-dropdown",
-            options=opciones_pets,
-            value="petsunknown",  # Valor por defecto
-            clearable=False
-        )
-    ], style={'width': '45%', 'padding': '10px'}),
-    
-    html.Br(),
-    
-    # Fila para número de cuartos y baños
-    html.Div([
+        ], style={'width': '45%', 'padding': '10px 0'}),
+        
         html.Div([
-            html.Label("Número de Cuartos"),
-            dcc.Dropdown(
-                id="bedrooms-dropdown",
-                options=opciones_cuartos,
-                value=3
-            )
-        ], style={'width': '30%', 'display': 'inline-block', 'marginRight': '5%'}),
+            html.Div([
+                html.Label("Número de Cuartos"),
+                dcc.Dropdown(
+                    id="bedrooms-dropdown",
+                    options=opciones_cuartos,
+                    value=3
+                )
+            ], style={'width': '30%', 'display': 'inline-block', 'marginRight': '5%'}),
+            html.Div([
+                html.Label("Número de Baños"),
+                dcc.Dropdown(
+                    id="bathrooms-dropdown",
+                    options=opciones_banios,
+                    value=2
+                )
+            ], style={'width': '30%', 'display': 'inline-block', 'marginRight': '5%'})
+        ], style={'marginBottom': '20px'}),
+        
         html.Div([
-            html.Label("Número de Baños"),
-            dcc.Dropdown(
-                id="bathrooms-dropdown",
-                options=opciones_banios,
-                value=2
+            html.Label("Seleccione unidad de área"),
+            dcc.RadioItems(
+                id="unit-radio",
+                options=[
+                    {"label": "Pies cuadrados (ft²)", "value": "ft2"},
+                    {"label": "Metros cuadrados (m²)", "value": "m2"}
+                ],
+                value="ft2",
+                labelStyle={'display': 'inline-block', 'margin-right': '10px'}
             )
-        ], style={'width': '30%', 'display': 'inline-block', 'marginRight': '5%'})
-    ]),
-    
-    html.Br(),
-    
-    # Selector de unidad para Área
-    html.Div([
-        html.Label("Seleccione unidad de área"),
-        dcc.RadioItems(
-            id="unit-radio",
-            options=[
-                {"label": "Pies cuadrados (ft²)", "value": "ft2"},
-                {"label": "Metros cuadrados (m²)", "value": "m2"}
-            ],
-            value="ft2",
-            labelStyle={'display': 'inline-block', 'margin-right': '10px'}
-        )
-    ], style={'width': '90%', 'padding': '20px'}),
-    
-    html.Br(),
-    
-    # Control deslizante para Área (valores internos en pies cuadrados)
-    html.Div([
-        html.Label("Seleccione Área"),
-        dcc.RangeSlider(
-            id="area-slider",
-            min=500,
-            max=5000,
-            step=50,
-            value=[1500, 2500],
-            marks={i: str(i) for i in range(500, 5001, 500)}  # Se actualizará según la unidad seleccionada
-        )
-    ], style={'width': '90%', 'padding': '20px'}),
+        ], style={'padding': '20px 0'}),
+        
+        html.Div([
+            html.Label("Seleccione Área"),
+            dcc.RangeSlider(
+                id="area-slider",
+                min=500,
+                max=5000,
+                step=50,
+                value=[1500, 2500],
+                marks={i: str(i) for i in range(500, 5001, 500)}
+            )
+        ], style={'padding': '20px 0'})
+    ], style={'marginLeft': '50px', 'marginRight': '50px'}),
     
     html.Br(),
     
     # Mapa de EE.UU. para mostrar la predicción por estado
-    dcc.Graph(id="us-map"),
+    dcc.Graph(id="us-map", style={'height': '600px', 'width': '100%'}),
     
     html.Br(),
     
     # Sección para mostrar el Top 10 de propiedades
-    html.H2("Top 10 Propiedades"),
-    html.Div(id="top10-div")
-])
-
+    html.H2("Top 10 Propiedades", style={'textAlign': 'center', 'marginBottom': '20px'}),
+    html.Div(id="top10-div", style={'marginLeft': '50px', 'marginRight': '50px'})
+], style={'margin': '20px'})
+    
 # -----------------------------------------------------------
 # Callback para actualizar las marcas del slider según la unidad seleccionada.
 # -----------------------------------------------------------
@@ -245,8 +235,8 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     fig.update_layout(title_text="Predicción de precio inmobiliario por estado", title_x=0.5)
     
     # --- PARTE 2: FILTRADO Y TOP 10 OPCIONES ---
-    datos_filtrados = df_datos.copy()
     # Rellenar valores faltantes en 'pets_allowed'
+    datos_filtrados = df_datos.copy()
     datos_filtrados['pets_allowed'] = datos_filtrados['pets_allowed'].fillna('petsunknown')
     
     # Filtrar por número de cuartos, baños y área (square_feet)
@@ -262,8 +252,6 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
         datos_filtrados = datos_filtrados[datos_filtrados['state'].isin(lista_estados_filtro)]
     
     # Filtrar por la opción de mascotas (pet-dropdown)
-    if pet_option is None:
-        pet_option = "petsunknown"
     datos_filtrados = datos_filtrados[datos_filtrados['pets_allowed'] == pet_option]
     
     # Filtrar por servicios (amenities) si se han seleccionado
@@ -274,23 +262,27 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
                           for amenity in servicios_seleccionados)
         )]
     
-    # Seleccionar las 10 propiedades más baratas según 'price'
-    top10_df = datos_filtrados.sort_values('price').head(10)[[
-        'bedrooms', 'bathrooms', 'square_feet', 'state', 
-        'pets_allowed', 'amenities', 'price'
-    ]]
+    # Seleccionar las 10 propiedades más baratas según el precio mostrando 'title' y 'body' para tener una mejor descripción
+    columnas_seleccionadas = ['title', 'body', 'bedrooms', 'bathrooms', 'square_feet', 'state', 'pets_allowed', 'amenities', 'price']
+    top10_df = datos_filtrados.sort_values('price').head(10)[columnas_seleccionadas]
     
     # Crear tabla HTML para mostrar el Top 10
     if not top10_df.empty:
-        table_header = html.Thead(html.Tr([html.Th(col) for col in top10_df.columns]))
-        table_body = html.Tbody([
-            html.Tr([html.Td(top10_df.iloc[i][col]) for col in top10_df.columns])
-            for i in range(len(top10_df))
-        ])
+        header_cells = [html.Th(col, style={'textAlign': 'center', 'padding': '8px', 'border': '1px solid black'}) 
+                        for col in top10_df.columns]
+        table_header = html.Thead(html.Tr(header_cells))
+        body_rows = []
+        for i in range(len(top10_df)):
+            row = html.Tr([
+                html.Td(top10_df.iloc[i][col], style={'textAlign': 'center', 'padding': '8px', 'border': '1px solid black'})
+                for col in top10_df.columns
+            ])
+            body_rows.append(row)
+        table_body = html.Tbody(body_rows)
         table = html.Table([table_header, table_body],
-                           style={'width': '100%', 'border': '1px solid black', 'borderCollapse': 'collapse'})
+                           style={'width': '100%', 'border': '1px solid black', 'borderCollapse': 'collapse', 'margin': '0 auto'})
     else:
-        table = "No hay propiedades que cumplan con todos los criterios."
+        table = "No hay propiedades que cumplan con todos los criterios seleccionados."
     
     return fig, table
 
