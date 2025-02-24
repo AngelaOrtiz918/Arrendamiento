@@ -13,7 +13,7 @@ import pandas as pd
 # Ruta base
 script_dir = os.path.dirname(os.path.abspath(__file__))
 archivo_datos = os.path.join(script_dir, 'datos_apartamentos_rent_practicamod.csv')
-archivo_coef = os.path.join(script_dir, 'coeficientes_modelo_final.csv')
+archivo_coef = os.path.join(script_dir, 'coeficientes_modelo_final_wy.csv')
 
 
 # Cargar el DataFrame de coeficientes y crear el diccionario de coeficientes
