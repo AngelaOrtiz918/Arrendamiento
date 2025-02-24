@@ -295,8 +295,8 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
         )
         fig.update_traces(
             hovertemplate="<b>%{location}</b><br>" +
-                          "Precio mínimo: %{customdata[0]}<br>" +
-                          "Precio máximo: %{customdata[1]}<extra></extra>",
+                          "Precio mínimo: %{customdata[0]:.2f}<br>" +
+                          "Precio máximo: %{customdata[1]:.2f}<extra></extra>",
             customdata=df_estados[["predicted_price_lower", "predicted_price_upper"]].values
         )
         fig.update_layout(title_text="Predicción de precio inmobiliario por estado", title_x=0.5)
