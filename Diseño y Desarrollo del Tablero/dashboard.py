@@ -11,7 +11,7 @@ import pandas as pd
 # ------------------------------
 
 # Ruta base
-ruta_base = os.path.abspath(os.path.join(os.getcwd(), '..', 'Proyecto 1', 'Arrendamiento', 'Modelamiento'))
+ruta_base = os.path.abspath(os.path.join(os.getcwd(), '..', 'Arrendamiento', 'Modelamiento'))
 ruta_datos = os.path.join(ruta_base, 'datos_apartamentos_rent_practicamod.csv')
 ruta_modelo = os.path.join(ruta_base, 'final_linear_regression_model_int.pkl')
 archivo_coef = os.path.join(ruta_base, 'coeficientes_modelo_final.csv')
