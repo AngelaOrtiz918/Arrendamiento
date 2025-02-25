@@ -64,8 +64,12 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.layout = html.Div([
     html.H1(
-        "Tablero de predicción de precios inmobiliarios",
+        "InmoVisión",
         style={'textAlign': 'center', 'marginBottom': '30px'}
+    ),
+    html.P(
+        "¡Bienvenido a Inmovisión el Tablero de Predicción Inmobiliaria! Descubre el valor estimado de tu futuro hogar de forma rápida y sencilla. Ingresa los detalles de la propiedad y, si se encuentra en nuestra base de datos, te mostraremos las 10 mejores opciones disponibles. ¡Empieza a explorar y encuentra la opción perfecta para ti!",
+        style={'textAlign': 'center', 'marginBottom': '30px', 'fontSize': '18px'}
     ),
     
     # Contenedor para los menús con márgenes laterales
@@ -73,7 +77,7 @@ app.layout = html.Div([
         # Fila 1: Número de cuartos, baños y mascotas
         html.Div([
             html.Div([
-                html.Label("Número de Cuartos"),
+                html.Label("Número de Cuartos*"),
                 dcc.Dropdown(
                     id="bedrooms-dropdown",
                     options=opciones_cuartos,
@@ -83,7 +87,7 @@ app.layout = html.Div([
             ], style={'width': '20%', 'marginRight': '5%'}),
             
             html.Div([
-                html.Label("Número de Baños"),
+                html.Label("Número de Baños*"),
                 dcc.Dropdown(
                     id="bathrooms-dropdown",
                     options=opciones_banios,
@@ -99,7 +103,7 @@ app.layout = html.Div([
                     value="petsunknown",
                     clearable=False
                 )
-            ], style={'width': '20%', 'marginBottom': '20px'})
+            ], style={'width': '45%', 'marginBottom': '20px'})
         ], style={
             'display': 'flex', 
             'flexWrap': 'wrap',
@@ -137,7 +141,7 @@ app.layout = html.Div([
         
         # Fila 4: Selección de unidad de área
         html.Div([
-            html.Label("Seleccione unidad de área"),
+            html.Label("Unidad de área preferida"),
             dcc.RadioItems(
                 id="unit-radio",
                 options=[
@@ -151,7 +155,7 @@ app.layout = html.Div([
         
         # Fila 5: Slider para Área
         html.Div([
-            html.Label("Seleccione Área"),
+            html.Label("Seleccione el rango de área"),
             dcc.RangeSlider(
                 id="area-slider",
                 min=500,
