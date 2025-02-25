@@ -11,17 +11,17 @@ import pandas as pd
 # ------------------------------
 
 # Ruta base
-ruta_base = os.path.abspath(os.path.join(os.getcwd(), '..', 'Proyecto 1', 'Arrendamiento', 'Modelamiento'))
-ruta_datos = os.path.join(ruta_base, 'datos_apartamentos_rent_practicamod.csv')
-ruta_modelo = os.path.join(ruta_base, 'final_linear_regression_model_int.pkl')
-archivo_coef = os.path.join(ruta_base, 'coeficientes_modelo_final.csv')
+script_dir = os.path.dirname(os.path.abspath(__file__))
+archivo_datos = os.path.join(script_dir, 'datos_apartamentos_rent_practicamod.csv')
+archivo_coef = os.path.join(script_dir, 'coeficientes_modelo_final.csv')
+
 
 # Cargar el DataFrame de coeficientes y crear el diccionario de coeficientes
 df_coef = pd.read_csv(archivo_coef)
 dic_coef = dict(zip(df_coef['Feature'], df_coef['Coefficient']))
 
 # Cargar el DataFrame de datos
-df_datos = pd.read_csv(ruta_datos, encoding='ISO-8859-1', on_bad_lines='skip', delimiter=';', engine='python')
+df_datos = pd.read_csv(archivo_datos, encoding='ISO-8859-1', on_bad_lines='skip', delimiter=';', engine='python')
 df_datos.columns = df_datos.columns.str.strip()
 
 # Establecer la intersección.
@@ -64,8 +64,12 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.layout = html.Div([
     html.H1(
-        "Tablero de predicción de precios inmobiliarios",
+        "InmoVisión",
         style={'textAlign': 'center', 'marginBottom': '30px'}
+    ),
+    html.P(
+        "¡Bienvenido a Inmovisión el Tablero de Predicción Inmobiliaria! Descubre el valor estimado de tu futuro hogar de forma rápida y sencilla. Ingresa los detalles de la propiedad y, si se encuentra en nuestra base de datos, te mostraremos las 10 mejores opciones disponibles. ¡Empieza a explorar y encuentra la opción perfecta para ti!",
+        style={'textAlign': 'center', 'marginBottom': '30px', 'fontSize': '18px'}
     ),
     
     # Contenedor para los menús con márgenes laterales
@@ -73,7 +77,7 @@ app.layout = html.Div([
         # Fila 1: Número de cuartos, baños y mascotas
         html.Div([
             html.Div([
-                html.Label("Número de Cuartos"),
+                html.Label("Número de Cuartos*"),
                 dcc.Dropdown(
                     id="bedrooms-dropdown",
                     options=opciones_cuartos,
@@ -83,7 +87,7 @@ app.layout = html.Div([
             ], style={'width': '20%', 'marginRight': '5%'}),
             
             html.Div([
-                html.Label("Número de Baños"),
+                html.Label("Número de Baños*"),
                 dcc.Dropdown(
                     id="bathrooms-dropdown",
                     options=opciones_banios,
@@ -99,7 +103,7 @@ app.layout = html.Div([
                     value="petsunknown",
                     clearable=False
                 )
-            ], style={'width': '20%', 'marginBottom': '20px'})
+            ], style={'width': '45%', 'marginBottom': '20px'})
         ], style={
             'display': 'flex', 
             'flexWrap': 'wrap',
@@ -137,7 +141,7 @@ app.layout = html.Div([
         
         # Fila 4: Selección de unidad de área
         html.Div([
-            html.Label("Seleccione unidad de área"),
+            html.Label("Unidad de área preferida"),
             dcc.RadioItems(
                 id="unit-radio",
                 options=[
@@ -151,7 +155,7 @@ app.layout = html.Div([
         
         # Fila 5: Slider para Área
         html.Div([
-            html.Label("Seleccione Área"),
+            html.Label("Seleccione el rango de área"),
             dcc.RangeSlider(
                 id="area-slider",
                 min=500,
@@ -220,25 +224,36 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     if not servicios_seleccionados:
         servicios_seleccionados = ["noamenities"]
     
-    # El valor del slider está en ft² (independientemente de la unidad de visualización)
-    valor_area = sum(rango_area) / 2.0
-
-    # Calcular el precio base usando entradas continuas
-    precio_base = interseccion
-    precio_base += cuartos * dic_coef.get("bedrooms", 0)
-    precio_base += banios * dic_coef.get("bathrooms", 0)
-    precio_base += valor_area * dic_coef.get("square_feet", 0)
-    precio_base += (banios * valor_area) * dic_coef.get("baños*area", 0)
-    precio_base += (cuartos * valor_area) * dic_coef.get("cuartos*area", 0)
-    precio_base += (cuartos * banios) * dic_coef.get("cuartos*baños", 0)
+    # rango minimo y maximo para el area
+    lower_area = rango_area[0]
+    upper_area = rango_area[1]
+    
+    # Calcular precio base min y max para el rango de área seleccionado
+    precio_base_lower = interseccion
+    precio_base_lower += cuartos * dic_coef.get("bedrooms", 0)
+    precio_base_lower += banios * dic_coef.get("bathrooms", 0)
+    precio_base_lower += lower_area * dic_coef.get("square_feet", 0)
+    precio_base_lower += (banios * lower_area) * dic_coef.get("baños*area", 0)
+    precio_base_lower += (cuartos * lower_area) * dic_coef.get("cuartos*area", 0)
+    precio_base_lower += (cuartos * banios) * dic_coef.get("cuartos*baños", 0)
+    
+    precio_base_upper = interseccion
+    precio_base_upper += cuartos * dic_coef.get("bedrooms", 0)
+    precio_base_upper += banios * dic_coef.get("bathrooms", 0)
+    precio_base_upper += upper_area * dic_coef.get("square_feet", 0)
+    precio_base_upper += (banios * upper_area) * dic_coef.get("baños*area", 0)
+    precio_base_upper += (cuartos * upper_area) * dic_coef.get("cuartos*area", 0)
+    precio_base_upper += (cuartos * banios) * dic_coef.get("cuartos*baños", 0)
     
     # Agregar contribución de los servicios (amenities) seleccionados
     for servicio in servicios_seleccionados:
-        precio_base += dic_coef.get(servicio, 0)
+        precio_base_lower += dic_coef.get(servicio, 0)
+        precio_base_upper += dic_coef.get(servicio, 0)
     
     if pet_option is None:
         pet_option = "petsunknown"
-    precio_base += dic_coef.get(pet_option, 0)
+    precio_base_lower += dic_coef.get(pet_option, 0)
+    precio_base_upper += dic_coef.get(pet_option, 0)
     
     if estados_seleccionados:
         lista_estados = estados_seleccionados
@@ -249,8 +264,15 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     for estado in lista_estados:
         clave_estado = "state_" + estado
         coef_estado = dic_coef.get(clave_estado, 0)
-        precio_predicho = precio_base + coef_estado
-        datos_estados.append({"state": estado, "predicted_price": precio_predicho})
+        precio_pred_lower = precio_base_lower + coef_estado
+        precio_pred_upper = precio_base_upper + coef_estado
+        precio_pred_avg = (precio_pred_lower + precio_pred_upper) / 2.0
+        datos_estados.append({
+            "state": estado, 
+            "predicted_price_lower": precio_pred_lower,
+            "predicted_price_upper": precio_pred_upper,
+            "predicted_price_avg": precio_pred_avg
+        })
     
     df_estados = pd.DataFrame(datos_estados)
     
@@ -262,14 +284,24 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
             title_x=0.5
         )
     else:
+        overall_min = df_estados["predicted_price_lower"].min()
+        overall_max = df_estados["predicted_price_upper"].max()
+        
         fig = px.choropleth(
             df_estados,
             locations="state",
             locationmode="USA-states",
-            color="predicted_price",
+            color="predicted_price_avg",
+            range_color=[overall_min, overall_max],
             color_continuous_scale="RdBu_r",
             scope="usa",
-            labels={"predicted_price": "Precio estimado"}
+            labels={"predicted_price_avg": "Precio estimado"}
+        )
+        fig.update_traces(
+            hovertemplate="<b>%{location}</b><br>" +
+                          "Precio mínimo: %{customdata[0]:.2f}<br>" +
+                          "Precio máximo: %{customdata[1]:.2f}<extra></extra>",
+            customdata=df_estados[["predicted_price_lower", "predicted_price_upper"]].values
         )
         fig.update_layout(title_text="Predicción de precio inmobiliario por estado", title_x=0.5)
     
