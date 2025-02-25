@@ -4,6 +4,7 @@ from dash import dcc, html, Input, Output
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import pandas as pd
 
 # ------------------------------
@@ -14,7 +15,6 @@ import pandas as pd
 script_dir = os.path.dirname(os.path.abspath(__file__))
 archivo_datos = os.path.join(script_dir, 'datos_apartamentos_rent_practicamod.csv')
 archivo_coef = os.path.join(script_dir, 'coeficientes_modelo_final.csv')
-
 
 # Cargar el DataFrame de coeficientes y crear el diccionario de coeficientes
 df_coef = pd.read_csv(archivo_coef)
@@ -38,7 +38,7 @@ caracteristicas_continuas = {"bathrooms", "bedrooms", "square_feet", "baños*are
 pet_options_set = {"Cats", "Cats,Dogs", "Dogs", "petsunknown"}
 opciones_pets = [{"label": opt, "value": opt} for opt in ["Cats", "Dogs", "Cats,Dogs", "petsunknown"]]
 
-# Servicios (amenities): se toman de dic_coef, eliminando las opciones de mascotas y "noamenities".
+# Servicios (amenities): se toman de dic_coef, eliminando opciones no deseadas.
 servicios = [
     car for car in dic_coef.keys() 
     if (not car.startswith("state_")) 
@@ -68,7 +68,7 @@ app.layout = html.Div([
         style={'textAlign': 'center', 'marginBottom': '30px'}
     ),
     html.P(
-        "¡Bienvenido a Inmovisión el Tablero de Predicción Inmobiliaria! Descubre el valor estimado de tu futuro hogar de forma rápida y sencilla. Ingresa los detalles de la propiedad y, si se encuentra en nuestra base de datos, te mostraremos las 10 mejores opciones disponibles. ¡Empieza a explorar y encuentra la opción perfecta para ti!",
+        "¡Bienvenido a Inmovisión, el Tablero de Predicción Inmobiliaria! Descubre el valor estimado de tu futuro hogar de forma rápida y sencilla. Ingresa los detalles de la propiedad y, si se encuentra en nuestra base de datos, te mostraremos las 10 mejores opciones disponibles. ¡Empieza a explorar y encuentra la opción perfecta para ti!",
         style={'textAlign': 'center', 'marginBottom': '30px', 'fontSize': '18px'}
     ),
     
@@ -139,31 +139,31 @@ app.layout = html.Div([
             'marginBottom': '20px'
         }),
         
-        # Fila 4: Selección de unidad de área
+        # Fila 3: Unidad de área y slider
         html.Div([
-            html.Label("Unidad de área preferida"),
-            dcc.RadioItems(
-                id="unit-radio",
-                options=[
-                    {"label": "Pies cuadrados (ft²)", "value": "ft2"},
-                    {"label": "Metros cuadrados (m²)", "value": "m2"}
-                ],
-                value="ft2",
-                labelStyle={'display': 'inline-block', 'margin-right': '10px'}
-            )
-        ], style={'marginBottom': '20px'}),
-        
-        # Fila 5: Slider para Área
-        html.Div([
-            html.Label("Seleccione el rango de área"),
-            dcc.RangeSlider(
-                id="area-slider",
-                min=500,
-                max=5000,
-                step=50,
-                value=[1500, 2500],
-                marks={i: str(i) for i in range(500, 5001, 500)}
-            )
+            html.Div([
+                html.Label("Unidad de área preferida"),
+                dcc.RadioItems(
+                    id="unit-radio",
+                    options=[
+                        {"label": "Pies cuadrados (ft²)", "value": "ft2"},
+                        {"label": "Metros cuadrados (m²)", "value": "m2"}
+                    ],
+                    value="ft2",
+                    labelStyle={'display': 'inline-block', 'margin-right': '10px'}
+                )
+            ], style={'marginBottom': '20px'}),
+            html.Div([
+                html.Label("Seleccione el rango de área"),
+                dcc.RangeSlider(
+                    id="area-slider",
+                    min=500,
+                    max=5000,
+                    step=50,
+                    value=[1500, 2500],
+                    marks={i: str(i) for i in range(500, 5001, 500)}
+                )
+            ], style={'marginBottom': '20px'})
         ], style={'marginBottom': '20px'})
         
     ], style={'marginLeft': '50px', 'marginRight': '50px'}),
@@ -186,7 +186,27 @@ app.layout = html.Div([
     html.Div(
         id="top10-div", 
         style={'marginLeft': '50px', 'marginRight': '50px'}
-    )
+    ),
+    
+    html.Br(),
+
+    html.H2(
+        "Estadísticas del modelo",
+        style={'textAlign': 'center', 'marginBottom': '20px'}
+    ),
+    
+    # Contenedor para las dos gráficas: de estados y de áreas, lado a lado
+    html.Div([
+        html.Div(
+            dcc.Graph(id="state-graph", style={'height': '600px', 'width': '100%'}),
+            style={'width': '50%', 'padding': '10px'}
+        ),
+        html.Div(
+            dcc.Graph(id="area-graph", style={'height': '600px', 'width': '100%'}),
+            style={'width': '50%', 'padding': '10px'}
+        )
+    ], style={'display': 'flex', 'marginLeft': '50px', 'marginRight': '50px'})
+    
 ], style={'margin': '20px'})
 
 # -----------------------------------------------------------
@@ -224,11 +244,10 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     if not servicios_seleccionados:
         servicios_seleccionados = ["noamenities"]
     
-    # rango minimo y maximo para el area
     lower_area = rango_area[0]
     upper_area = rango_area[1]
     
-    # Calcular precio base min y max para el rango de área seleccionado
+    # Cálculo del precio base (mínimo y máximo) en función de los inputs
     precio_base_lower = interseccion
     precio_base_lower += cuartos * dic_coef.get("bedrooms", 0)
     precio_base_lower += banios * dic_coef.get("bathrooms", 0)
@@ -245,7 +264,7 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     precio_base_upper += (cuartos * upper_area) * dic_coef.get("cuartos*area", 0)
     precio_base_upper += (cuartos * banios) * dic_coef.get("cuartos*baños", 0)
     
-    # Agregar contribución de los servicios (amenities) seleccionados
+    # Contribución de los servicios seleccionados
     for servicio in servicios_seleccionados:
         precio_base_lower += dic_coef.get(servicio, 0)
         precio_base_upper += dic_coef.get(servicio, 0)
@@ -276,7 +295,6 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     
     df_estados = pd.DataFrame(datos_estados)
     
-    # Verificar si df_estados está vacío
     if df_estados.empty:
         fig = go.Figure()
         fig.update_layout(
@@ -295,7 +313,7 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
             range_color=[overall_min, overall_max],
             color_continuous_scale="RdBu_r",
             scope="usa",
-            labels={"predicted_price_avg": "Precio estimado"}
+            labels={"predicted_price_avg": "Precio estimado (USD)"}
         )
         fig.update_traces(
             hovertemplate="<b>%{location}</b><br>" +
@@ -309,7 +327,7 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
     datos_filtrados = df_datos.copy()
     datos_filtrados['pets_allowed'] = datos_filtrados['pets_allowed'].fillna('petsunknown')
     
-    # Filtrar por número de cuartos, baños y área (square_feet)
+    # Filtrado por cuartos, baños y área
     datos_filtrados = datos_filtrados[
         (datos_filtrados['bedrooms'] == int(cuartos)) &
         (datos_filtrados['bathrooms'] == int(banios)) &
@@ -369,6 +387,90 @@ def actualizar_dashboard(servicios_seleccionados, estados_seleccionados, pet_opt
         table = "No hay propiedades que cumplan con todos los criterios seleccionados."
     
     return fig, table
+
+# -----------------------------------------------------------
+# Callback para actualizar el gráfico de estado (Precio Promedio y Cantidad de Propiedades)
+# -----------------------------------------------------------
+@app.callback(
+    Output("state-graph", "figure"),
+    Input("us-map", "figure")  # Dependencia dummy para refrescar la gráfica
+)
+def actualizar_estado(dummy):
+    df = df_datos.copy()
+    # Calcular precio promedio por estado
+    state_means = df.groupby('state')['price'].mean().reset_index().sort_values('price')
+    # Calcular cantidad de propiedades por estado
+    state_counts = df['state'].value_counts().reset_index()
+    state_counts.columns = ['state', 'count']
+    
+    # Crear figura con doble eje Y
+    fig_state = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # Gráfico de barras: Precio Promedio
+    fig_state.add_trace(
+        go.Bar(
+            x=state_means['state'],
+            y=state_means['price'],
+            name="Precio Promedio"
+        ),
+        secondary_y=False
+    )
+    
+    # Gráfico de dispersión: Cantidad de Propiedades
+    fig_state.add_trace(
+        go.Scatter(
+            x=state_counts['state'],
+            y=state_counts['count'],
+            mode='markers',
+            name="Cantidad de Propiedades",
+            marker=dict(color='orange', size=10)
+        ),
+        secondary_y=True
+    )
+    
+    fig_state.update_yaxes(title_text="Precio Promedio", secondary_y=False)
+    fig_state.update_yaxes(title_text="Cantidad de Propiedades", secondary_y=True)
+    
+    fig_state.update_layout(
+        title_text="Precio Promedio y Cantidad de Propiedades por Estado",
+        xaxis_title="Estado",
+        bargap=0.2,
+        height=600,
+        width=1000,
+        template="plotly_white"
+    )
+    
+    return fig_state
+
+# -----------------------------------------------------------
+# Callback para actualizar el gráfico de áreas apiladas (Precio por Habitaciones y Baños)
+# -----------------------------------------------------------
+@app.callback(
+    Output("area-graph", "figure"),
+    Input("us-map", "figure")  # Dependencia dummy para actualización
+)
+def actualizar_area(dummy):
+    df = df_datos.copy()
+    # Pivotear la tabla para gráfico de áreas apiladas
+    df_pivot = df.pivot_table(index="bedrooms", columns="bathrooms", values="price", aggfunc="sum").fillna(0)
+    # Convertir a formato largo para Plotly
+    df_area = df_pivot.reset_index().melt(id_vars='bedrooms', var_name='bathrooms', value_name='price')
+    
+    fig_area = px.area(
+        df_area,
+        x='bedrooms',
+        y='price',
+        color='bathrooms',
+        title='Precio discriminado por cantidad de habitaciones y baños',
+        labels={
+            'bedrooms': 'Número de habitaciones',
+            'price': 'Precio',
+            'bathrooms': 'Número de baños'
+        },
+        color_discrete_sequence=px.colors.sequential.Viridis
+    )
+    fig_area.update_layout(template="plotly_white")
+    return fig_area
 
 # -----------------------------------------------------------
 # Ejecutar la aplicación Dash.
