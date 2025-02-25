@@ -24,6 +24,21 @@ dic_coef = dict(zip(df_coef['Feature'], df_coef['Coefficient']))
 df_datos = pd.read_csv(archivo_datos, encoding='ISO-8859-1', on_bad_lines='skip', delimiter=';', engine='python')
 df_datos.columns = df_datos.columns.str.strip()
 
+
+# Calcular el primer y tercer cuartil (Q1 y Q3)
+Q1 = df_datos['price'].quantile(0.25)
+Q3 = df_datos['price'].quantile(0.75)
+
+# Calcular el rango intercuartil (IQR)
+IQR = Q3 - Q1
+
+# Definir límites para detección de outliers
+lower_bound = Q1 - 1.5 * IQR
+upper_bound = Q3 + 1.5 * IQR
+
+df_sinoutliers = df_datos[(df_datos['price'] >= lower_bound) & (df_datos['price'] <= upper_bound)]
+df_datos = df_sinoutliers
+
 # Establecer la intersección.
 interseccion = 0
 
@@ -411,7 +426,15 @@ def actualizar_estado(dummy):
         go.Bar(
             x=state_means['state'],
             y=state_means['price'],
-            name="Precio Promedio"
+            marker=dict(
+                color=state_means['price'],
+                colorscale='RdBu_r',
+                colorbar=dict(
+                    title='Precio promedio (USD)',
+                    len=0.5  # adjust this value as needed
+                )
+            ),
+            name="Precio promedio (USD)"
         ),
         secondary_y=False
     )
@@ -428,7 +451,7 @@ def actualizar_estado(dummy):
         secondary_y=True
     )
     
-    fig_state.update_yaxes(title_text="Precio Promedio", secondary_y=False)
+    fig_state.update_yaxes(title_text="Precio promedio (USD)", secondary_y=False)
     fig_state.update_yaxes(title_text="Cantidad de Propiedades", secondary_y=True)
     
     fig_state.update_layout(
